@@ -23,6 +23,8 @@ import Data.Typeable
 import General.Binary
 import Data.Maybe
 import Data.List
+import Data.List.NonEmpty (NonEmpty(..))
+import qualified Data.List.NonEmpty as NE
 import Control.Exception
 import General.Extra
 import Development.Shake.Internal.Core.Database
@@ -76,7 +78,8 @@ runAction g l (Action x) = runRAW (fromAction . build) g l x
         build [] = return []
         build ks@((callstack,_):_) = do
             let kss = map snd ks
-            unconcat kss <$> globalBuild g callstack (concat kss)
+            -- TODO: Do without NE wrapping and unwrapping
+            unconcat kss . NE.toList <$> globalBuild g callstack (NE.fromList (concat kss))
 
 
 ---------------------------------------------------------------------
@@ -394,7 +397,7 @@ type Database = DatabasePoly Key Status
 
 -- global constants of Action
 data Global = Global
-    {globalBuild :: [String] -> [Key] -> Action [Value]
+    {globalBuild :: [String] -> NonEmpty Key -> Action (NonEmpty Value)
     ,globalDatabase :: Database -- ^ Database, contains knowledge of the state of each key
     ,globalPool :: Pool -- ^ Pool, for queuing new elements
     ,globalCleanup :: Cleanup -- ^ Cleanup operations

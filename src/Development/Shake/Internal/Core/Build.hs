@@ -33,6 +33,8 @@ import Development.Shake.Internal.Core.Rules
 import Data.Typeable
 import Data.Maybe
 import Data.List.Extra
+import Data.List.NonEmpty (NonEmpty(..))
+import qualified Data.List.NonEmpty as NE
 import Data.Either.Extra
 import System.Time.Extra
 
@@ -141,7 +143,7 @@ buildRunDependenciesChanged global stack database me = isJust <$> firstJustM id
 ---------------------------------------------------------------------
 -- ACTUAL WORKERS
 
-applyKeyValue :: [String] -> [Key] -> Action [Value]
+applyKeyValue :: [String] -> NonEmpty Key -> Action (NonEmpty Value)
 applyKeyValue callStack ks = do
     -- this is the only place a user can inject a key into our world, so check they aren't throwing
     -- in unevaluated bottoms
@@ -151,19 +153,19 @@ applyKeyValue callStack ks = do
     Local{localStack, localBlockApply} <- Action getRW
     let stack = addCallStack callStack localStack
 
-    let tk = typeKey $ head $ ks ++ [newKey ()] -- always called at non-empty so never see () key
-    whenJust localBlockApply $ throwM . errorNoApply tk (show <$> listToMaybe ks)
+    let tk = typeKey $ NE.head ks
+    whenJust localBlockApply $ throwM . errorNoApply tk (show <$> Just (NE.head ks))
 
     let database = globalDatabase
     (is, wait) <- liftIO $ runLocked database $ do
         is <- mapM (mkId database) ks
         wait <- runWait $ do
-            x <- firstJustWaitUnordered (fmap (either Just (const Nothing)) . lookupOne global stack database) $ nubOrd is
+            x <- firstJustWaitUnordered (fmap (either Just (const Nothing)) . lookupOne global stack database) $ nubOrd $ NE.toList is
             case x of
                 Just e -> return $ Left e
                 Nothing -> quickly $ Right <$> mapM (fmap (\(Just (_, Ready r)) -> fst $ result r) . liftIO . getKeyValueFromId database) is
         return (is, wait)
-    Action $ modifyRW $ \s -> s{localDepends = Depends is : localDepends s}
+    Action $ modifyRW $ \s -> s{localDepends = Depends (NE.toList is) : localDepends s}
 
     case wait of
         Now vs -> either throwM return vs
