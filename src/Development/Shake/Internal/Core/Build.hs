@@ -154,7 +154,7 @@ applyKeyValue callStack ks = do
     let stack = addCallStack callStack localStack
 
     let tk = typeKey $ NE.head ks
-    whenJust localBlockApply $ throwM . errorNoApply tk (show <$> Just (NE.head ks))
+    whenJust localBlockApply $ throwM . errorNoApply tk (show (NE.head ks))
 
     let database = globalDatabase
     (is, wait) <- liftIO $ runLocked database $ do

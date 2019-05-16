@@ -110,12 +110,12 @@ errorComplexRecursion ks = errorStructured
     [("Key value " ++ show i, Just k) | (i, k) <- zipFrom 1 ks]
     "Rules may not be recursive"
 
-errorNoApply :: TypeRep -> Maybe String -> String -> SomeException
+errorNoApply :: TypeRep -> String -> String -> SomeException
 errorNoApply tk k msg = errorStructured
     "Build system error - cannot currently introduce a dependency (e.g. calling 'apply')"
     [("Reason", Just msg)
     ,("Key type", Just $ show tk)
-    ,("Key value", k)]
+    ,("Key value", Just k)]
     "Move the call earlier/later"
 
 
